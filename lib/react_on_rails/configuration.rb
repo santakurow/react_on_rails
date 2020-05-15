@@ -33,7 +33,8 @@ module ReactOnRails
       server_render_method: nil,
       build_test_command: "",
       build_production_command: "",
-      random_dom_id: DEFAULT_RANDOM_DOM_ID
+      random_dom_id: DEFAULT_RANDOM_DOM_ID,
+      same_bundle_for_client_and_server: false
     )
   end
 
@@ -46,7 +47,9 @@ module ReactOnRails
                   :webpack_generated_files, :rendering_extension, :build_test_command,
                   :build_production_command,
                   :i18n_dir, :i18n_yml_dir,
-                  :server_render_method, :random_dom_id
+                  :server_render_method,
+                  :random_dom_id,
+                  :same_bundle_for_client_and_server
 
     def initialize(node_modules_location: nil, server_bundle_js_file: nil, prerender: nil,
                    replay_console: nil,
@@ -58,9 +61,9 @@ module ReactOnRails
                    rendering_extension: nil, build_test_command: nil,
                    build_production_command: nil,
                    i18n_dir: nil, i18n_yml_dir: nil, random_dom_id: nil,
+                   same_bundle_for_client_and_server: nil,
                    server_render_method: nil)
       self.node_modules_location = node_modules_location.present? ? node_modules_location : Rails.root
-      self.server_bundle_js_file = server_bundle_js_file
       self.generated_assets_dirs = generated_assets_dirs
       self.generated_assets_dir = generated_assets_dir
       self.build_test_command = build_test_command
@@ -82,6 +85,8 @@ module ReactOnRails
       self.skip_display_none = skip_display_none
 
       # Server rendering:
+      self.server_bundle_js_file = server_bundle_js_file
+      self.same_bundle_for_client_and_server = same_bundle_for_client_and_server
       self.server_renderer_pool_size = self.development_mode ? 1 : server_renderer_pool_size
       self.server_renderer_timeout = server_renderer_timeout # seconds
 
@@ -97,7 +102,6 @@ module ReactOnRails
       configure_generated_assets_dirs_deprecation
       configure_skip_display_none_deprecation
       ensure_generated_assets_dir_present
-      ensure_server_bundle_js_file_has_no_path
       check_i18n_directory_exists
       check_i18n_yml_directory_exists
       check_server_render_method_is_only_execjs
@@ -196,22 +200,10 @@ module ReactOnRails
     def ensure_webpack_generated_files_exists
       return unless webpack_generated_files.empty?
 
-      files = ["hello-world-bundle.js"]
+      files = ["manifest.json"]
       files << server_bundle_js_file if server_bundle_js_file.present?
 
       self.webpack_generated_files = files
-    end
-
-    def ensure_server_bundle_js_file_has_no_path
-      return unless server_bundle_js_file.include?(File::SEPARATOR)
-
-      assets_dir = ReactOnRails::Utils.generated_assets_full_path
-      self.server_bundle_js_file = File.basename(server_bundle_js_file)
-
-      Rails.logger.warn do
-        "[DEPRECATION] ReactOnRails: remove path from server_bundle_js_file in configuration. "\
-      "All generated files must go in #{assets_dir}. Using file basename #{server_bundle_js_file}"
-      end
     end
 
     def configure_skip_display_none_deprecation
